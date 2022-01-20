@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:firedart/firedart.dart';
 import 'package:cmmaa/reservation.dart';
 import 'package:cmmaa/users.dart';
 
-const apiKey = 'AIzaSyBm54--sB48BMZmmxWf9lymsEyofP8sms4';
-const projectId = 'cmma-1e6df';
-
 void main() async {
-
-  Firestore.initialize(projectId);
+  // await Firebase.initializeApp(
+  //     //options: DefaultFirebaseOptions.currentPlatform,
+  //     );
 
   runApp(MaterialApp(
     title: 'Flutter Demo',

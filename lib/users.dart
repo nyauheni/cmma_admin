@@ -1,8 +1,12 @@
+import 'dart:convert';
 import 'dart:io';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
 
 import 'package:csv/csv.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:firedart/firedart.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:horizontal_data_table/horizontal_data_table.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:cmmaa/database.dart';
@@ -20,9 +24,7 @@ class UsersState extends State<Users> {
   final HDTRefreshController _hdtRefreshController = HDTRefreshController();
   final List<FieldHeader> headers = Header.getHeaders();
 
-  Stream<List<Document>>? stream;
-
-  List<Document> users = [];
+  List<dynamic> users = [];
   List<Map<String, dynamic>> editedUsers = [];
   List<String> selectedUsers = [];
 
@@ -30,15 +32,14 @@ class UsersState extends State<Users> {
   Map<String, String> filterToFilter = {};
   bool isWithFilter = false;
 
-  String sortField = '';
-  bool isAscending = true;
+  String sortKey = '';
+  int sortOrder = 0;
+  String sortType = '';
 
   String selectedUsersCSV = "SelectedUsers";
 
   @override
   void initState() {
-    stream = Firestore.instance.collection("Users").stream;
-
     for (FieldHeader header in headers) {
       {
         headerToFilter[header.headerKey] = false;
@@ -66,7 +67,50 @@ class UsersState extends State<Users> {
         verticalDirection: VerticalDirection.down,
         children: <Widget>[
           Expanded(
-            child: streamBuilder(),
+            child: StreamBuilder(
+              stream:
+                  FirebaseFirestore.instance.collection("Users").snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  var x = snapshot.data as QuerySnapshot;
+                  users = x.docs;
+
+                  if (sortOrder != 0) {
+                    users.sort((a, b) {
+                      String aa = (sortOrder == 1) ? a[sortKey] : b[sortKey];
+                      String bb = (sortOrder == 1) ? b[sortKey] : a[sortKey];
+                      if (sortType == "lex") {
+                        return aa.compareTo(bb);
+                      } else if (sortType == "num") {
+                        return double.parse(aa).compareTo(double.parse(bb));
+                      } else if (sortType == "date") {
+                        return DateTime.parse(aa).compareTo(DateTime.parse(bb));
+                      } else {
+                        return 0;
+                      }
+                    });
+                  }
+
+                  if (isWithFilter) {
+                    for (FieldHeader header in headers) {
+                      if (headerToFilter.cast()[header.headerKey]) {
+                        users = users
+                            .where((doc) => doc[header.headerKey]
+                                .toString()
+                                .startsWith(filterToFilter[header.headerKey]
+                                    .toString()))
+                            .toList();
+                      }
+                    }
+                  }
+                  return dataBody(users);
+                }
+                if (snapshot.hasError) {
+                  return const Text('Something went wrong!');
+                }
+                return const CircularProgressIndicator();
+              },
+            ),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -79,9 +123,9 @@ class UsersState extends State<Users> {
                     onPressed: () async {
                       if (selectedUsers.isNotEmpty) {
                         for (String id in selectedUsers) {
-                          await Firestore.instance
+                          FirebaseFirestore.instance
                               .collection('Users')
-                              .document(id)
+                              .doc(id)
                               .delete();
                         }
                         selectedUsers.clear();
@@ -110,71 +154,84 @@ class UsersState extends State<Users> {
                           }
                         }
                       }
-                      await Firestore.instance.collection('Users').add(map);
+                      await FirebaseFirestore.instance
+                          .collection('Users')
+                          .add(map);
                       setState(() {});
                     }),
               ),
               Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: OutlinedButton(
-                    child: const Text('EXPORT CSV'),
+                    child: Text(kIsWeb ? 'DOWNLOAD CSV' : 'EXPORT CSV'),
                     onPressed: () async {
-                      String? result = await FilePicker.platform.saveFile(
-                        dialogTitle: 'Please select an output file:',
-                        fileName: selectedUsersCSV,
-                        type: FileType.custom,
-                        allowedExtensions: ['csv'],
-                      );
-
-                      if (result != null) {
-                        bool? overwrite = true;
-                        String fileName = (selectedUsersCSV = result) + '.csv';
-                        if (File(fileName).existsSync()) {
-                          overwrite = await showDialog<bool>(
-                              barrierDismissible: false,
-                              context: context,
-                              builder: (context) {
-                                return AlertDialog(
-                                  title: Text(
-                                      fileName + ' already exists. Replace?'),
-                                  actions: <Widget>[
-                                    TextButton(
-                                      child: const Text("Yes"),
-                                      onPressed: () async {
-                                        Navigator.pop(context, true);
-                                      },
-                                    ),
-                                    TextButton(
-                                      child: const Text("No"),
-                                      onPressed: () async {
-                                        Navigator.pop(context, false);
-                                      },
-                                    ),
-                                  ],
-                                );
-                              });
+                      List<List<dynamic>> rows = [];
+                      List<dynamic> row = [];
+                      for (var header in headers) {
+                        row.add(header.headerTitle);
+                      }
+                      rows.add(row);
+                      for (int index = 0; index < users.length; index++) {
+                        List<dynamic> row = [];
+                        for (var header in headers) {
+                          row.add(users[index][header.headerKey]);
                         }
+                        rows.add(row);
+                      }
+                      String csvText = const ListToCsvConverter()
+                          .convert(rows, fieldDelimiter: ';');
 
-                        if (overwrite!) {
-                          List<List<dynamic>> rows = [];
-                          List<dynamic> row = [];
-                          for (var header in headers) {
-                            row.add(header.headerTitle);
-                          }
-                          rows.add(row);
-                          for (int index = 0; index < users.length; index++) {
-                            List<dynamic> row = [];
-                            for (var header in headers) {
-                              row.add(users[index][header.headerKey]);
-                            }
-                            rows.add(row);
-                          }
-                          File(fileName).writeAsString(
-                              const ListToCsvConverter()
-                                  .convert(rows, fieldDelimiter: ';'));
-                        }
+                      if (kIsWeb) {
+                        html.AnchorElement()
+                          ..href =
+                              '${Uri.dataFromString(csvText, mimeType: 'text/plain', encoding: utf8)}'
+                          ..download = selectedUsersCSV + '.csv'
+                          ..style.display = 'none'
+                          ..click();
                       } else {
-                        // User canceled the picker
+                        bool? overwrite = true;
+                        String? fileName;
+                        String? result = await FilePicker.platform.saveFile(
+                          dialogTitle: 'Please select an output file:',
+                          fileName: selectedUsersCSV,
+                          type: FileType.custom,
+                          allowedExtensions: ['csv'],
+                        );
+                        if (result != null) {
+                          fileName = (selectedUsersCSV = result) + '.csv';
+                        }
+                        if (fileName != null) {
+                          if (File(fileName).existsSync()) {
+                            overwrite = await showDialog<bool>(
+                                barrierDismissible: false,
+                                context: context,
+                                builder: (context) {
+                                  return AlertDialog(
+                                    title: Text(fileName! +
+                                        ' already exists. Replace?'),
+                                    actions: <Widget>[
+                                      TextButton(
+                                        child: const Text("Yes"),
+                                        onPressed: () async {
+                                          Navigator.pop(context, true);
+                                        },
+                                      ),
+                                      TextButton(
+                                        child: const Text("No"),
+                                        onPressed: () async {
+                                          Navigator.pop(context, false);
+                                        },
+                                      ),
+                                    ],
+                                  );
+                                });
+                          }
+                          if (overwrite!) {
+                            File(fileName).writeAsString(csvText);
+                          }
+                        } else {
+                          // User canceled the picker
+                        }
                       }
                       setState(() {});
                     }),
@@ -186,33 +243,7 @@ class UsersState extends State<Users> {
     );
   }
 
-  StreamBuilder streamBuilder() {
-    return StreamBuilder(
-      stream: stream,
-      builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          users = snapshot.data;
-          if (isWithFilter) {
-            for (FieldHeader header in headers) {
-              if (headerToFilter.cast()[header.headerKey]) {
-                users = users
-                    .where((doc) => doc.map[header.headerKey]
-                        .toString()
-                        .startsWith(
-                            filterToFilter[header.headerKey].toString()))
-                    .toList();
-              }
-            }
-          }
-          return dataBody(users);
-        }
-        if (snapshot.hasError) return const Text('Something went wrong!');
-        return const CircularProgressIndicator();
-      },
-    );
-  }
-
-  HorizontalDataTable dataBody(List<Document> data) {
+  HorizontalDataTable dataBody(List<dynamic> data) {
     return HorizontalDataTable(
       leftHandSideColumnWidth: headers[0].width + 70,
       rightHandSideColumnWidth: Header.totalWidth(headers),
@@ -272,8 +303,8 @@ class UsersState extends State<Users> {
                     child: Container(
                       child: Text(
                           header.headerTitle +
-                              (header.headerKey == sortField
-                                  ? (isAscending ? ' ↓' : ' ↑')
+                              (header.headerKey == sortKey && sortOrder != 0
+                                  ? (sortOrder == 1 ? ' ↓' : ' ↑')
                                   : ''),
                           style: const TextStyle(fontWeight: FontWeight.bold)),
                       width: header.width,
@@ -282,15 +313,11 @@ class UsersState extends State<Users> {
                       padding: const EdgeInsets.fromLTRB(5, 0, 0, 0),
                     ),
                     onPressed: () {
-                      sortField = header.headerKey;
-                      isAscending = !isAscending;
-                      if (isAscending) {
-                        users.sort(
-                            (a, b) => a[sortField].compareTo(b[sortField]));
-                      } else {
-                        users.sort(
-                            (a, b) => b[sortField].compareTo(a[sortField]));
-                      }
+                      sortOrder += 1;
+                      if (sortOrder == 2) sortOrder = -1;
+                      sortKey =
+                          sortOrder == 0 ? sortKey = '' : header.headerKey;
+                      sortType = header.headerSort;
                       setState(() {});
                     },
                     onLongPress: () {
@@ -359,9 +386,9 @@ class UsersState extends State<Users> {
                                   selectedUsers.contains(users[index].id)) {
                                 Map<String, dynamic> map = editedUsers[
                                     selectedUsers.indexOf(users[index].id)];
-                                await Firestore.instance
+                                await FirebaseFirestore.instance
                                     .collection('Users')
-                                    .document(users[index].id)
+                                    .doc(users[index].id)
                                     .update(map);
                                 selectedUsers.remove(users[index].id);
                                 editedUsers.remove(map);
@@ -403,15 +430,10 @@ class UsersState extends State<Users> {
                             onPressed: () async {
                               if (selectedUsers.isEmpty ||
                                   !selectedUsers.contains(users[index].id)) {
-                                List<String> listHeader = headers
-                                    .map((header) => header.headerKey)
-                                    .toList();
                                 Map<String, dynamic> map = {
-                                  for (var e in users[index]
-                                      .map
-                                      .keys
-                                      .where((k) => listHeader.contains(k)))
-                                    e: users[index].map[e]
+                                  for (var header in headers)
+                                    header.headerKey: users[index]
+                                        [header.headerKey]
                                 };
                                 editedUsers.add(map);
                                 selectedUsers.add(users[index].id);
