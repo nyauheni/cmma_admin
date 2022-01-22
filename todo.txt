@@ -1,3 +1,0 @@
-FilePicker
-'ADD USER'
-IMPORT CSV

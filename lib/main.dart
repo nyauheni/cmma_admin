@@ -1,12 +1,16 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:cmmaa/reservation.dart';
-import 'package:cmmaa/users.dart';
+import 'package:cmma_admin/firebase_options.dart';
+import 'package:cmma_admin/reservation.dart';
+import 'package:cmma_admin/users.dart';
 
 void main() async {
-  // await Firebase.initializeApp(
-  //     //options: DefaultFirebaseOptions.currentPlatform,
-  //     );
-
+  if (!kIsWeb) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
   runApp(MaterialApp(
     title: 'Flutter Demo',
     debugShowCheckedModeBanner: false,

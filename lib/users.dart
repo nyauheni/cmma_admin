@@ -1,15 +1,12 @@
-import 'dart:convert';
-import 'dart:io';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
-
-import 'package:csv/csv.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:horizontal_data_table/horizontal_data_table.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:cmmaa/database.dart';
+import 'package:csv/csv.dart';
+import 'package:cmma_admin/database.dart';
+
+import 'download_desktop.dart' if (dart.library.html) 'download_web.dart'
+    as download;
 
 class Users extends StatefulWidget {
   const Users({Key? key}) : super(key: key);
@@ -25,7 +22,7 @@ class UsersState extends State<Users> {
   final List<FieldHeader> headers = Header.getHeaders();
 
   List<dynamic> users = [];
-  List<Map<String, dynamic>> editedUsers = [];
+  Map<String, Map<String, dynamic>> editedUsers = {};
   List<String> selectedUsers = [];
 
   Map<String, bool> headerToFilter = {};
@@ -33,10 +30,10 @@ class UsersState extends State<Users> {
   bool isWithFilter = false;
 
   String sortKey = '';
-  int sortOrder = 0;
   String sortType = '';
+  int sortOrder = 0;
 
-  String selectedUsersCSV = "SelectedUsers";
+  String csvUsers = "Users";
 
   @override
   void initState() {
@@ -72,8 +69,7 @@ class UsersState extends State<Users> {
                   FirebaseFirestore.instance.collection("Users").snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
-                  var x = snapshot.data as QuerySnapshot;
-                  users = x.docs;
+                  users = (snapshot.data as QuerySnapshot).docs;
 
                   if (sortOrder != 0) {
                     users.sort((a, b) {
@@ -103,7 +99,8 @@ class UsersState extends State<Users> {
                       }
                     }
                   }
-                  return dataBody(users);
+
+                  return dataBody();
                 }
                 if (snapshot.hasError) {
                   return const Text('Something went wrong!');
@@ -121,17 +118,20 @@ class UsersState extends State<Users> {
                 child: OutlinedButton(
                     child: const Text('DELETE SELECTED'),
                     onPressed: () async {
-                      if (selectedUsers.isNotEmpty) {
-                        for (String id in selectedUsers) {
-                          FirebaseFirestore.instance
-                              .collection('Users')
-                              .doc(id)
-                              .delete();
+                      if (editedUsers.isNotEmpty) {
+                        return null;
+                      } else {
+                        if (selectedUsers.isNotEmpty) {
+                          for (String id in selectedUsers) {
+                            FirebaseFirestore.instance
+                                .collection('Users')
+                                .doc(id)
+                                .delete();
+                          }
+                          selectedUsers.clear();
                         }
-                        selectedUsers.clear();
-                        editedUsers.clear();
+                        setState(() {});
                       }
-                      setState(() {});
                     }),
               ),
               Padding(
@@ -139,25 +139,34 @@ class UsersState extends State<Users> {
                 child: OutlinedButton(
                     child: const Text('ADD USER'),
                     onPressed: () async {
-                      Map<String, dynamic> map = {};
-                      if (selectedUsers.isNotEmpty) {
-                        map = editedUsers[
-                            selectedUsers.indexOf(selectedUsers.last)];
+                      if (editedUsers.isNotEmpty) {
+                        return null;
                       } else {
-                        for (var header in headers) {
-                          if (header.headerType == "text") {
-                            map[header.headerKey] = header.headerTitle;
-                          } else if (header.headerType == "list") {
-                            map[header.headerKey] = header.headerChoices[0];
-                          } else if (header.headerType == "date") {
-                            map[header.headerKey] = DateTime.now().toString();
+                        Map<String, dynamic> map = {};
+                        if (selectedUsers.isNotEmpty) {
+                          for (int index = 0; index < users.length; index++) {
+                            if (selectedUsers.contains(users[index].id)) {
+                              map = {
+                                for (var header in headers)
+                                  header.headerKey: users[index]
+                                      [header.headerKey]
+                              };
+                            }
+                          }
+                        } else {
+                          for (var header in headers) {
+                            if (header.headerType == "text") {
+                              map[header.headerKey] = header.headerTitle;
+                            } else if (header.headerType == "list") {
+                              map[header.headerKey] = header.headerChoices[0];
+                            } else if (header.headerType == "date") {
+                              map[header.headerKey] = DateTime.now().toString();
+                            }
                           }
                         }
+                        editedUsers.addAll({"NewUser": map});
+                        setState(() {});
                       }
-                      await FirebaseFirestore.instance
-                          .collection('Users')
-                          .add(map);
-                      setState(() {});
                     }),
               ),
               Padding(
@@ -165,75 +174,81 @@ class UsersState extends State<Users> {
                 child: OutlinedButton(
                     child: Text(kIsWeb ? 'DOWNLOAD CSV' : 'EXPORT CSV'),
                     onPressed: () async {
-                      List<List<dynamic>> rows = [];
-                      List<dynamic> row = [];
-                      for (var header in headers) {
-                        row.add(header.headerTitle);
-                      }
-                      rows.add(row);
-                      for (int index = 0; index < users.length; index++) {
+                      if (editedUsers.isNotEmpty) {
+                        return null;
+                      } else {
+                        List<List<dynamic>> rows = [];
                         List<dynamic> row = [];
                         for (var header in headers) {
-                          row.add(users[index][header.headerKey]);
+                          row.add(header.headerTitle);
                         }
                         rows.add(row);
-                      }
-                      String csvText = const ListToCsvConverter()
-                          .convert(rows, fieldDelimiter: ';');
+                        for (int index = 0; index < users.length; index++) {
+                          List<dynamic> row = [];
+                          for (var header in headers) {
+                            row.add(users[index][header.headerKey]);
+                          }
+                          rows.add(row);
+                        }
+                        String csvText = const ListToCsvConverter()
+                            .convert(rows, fieldDelimiter: ';');
 
-                      if (kIsWeb) {
-                        html.AnchorElement()
-                          ..href =
-                              '${Uri.dataFromString(csvText, mimeType: 'text/plain', encoding: utf8)}'
-                          ..download = selectedUsersCSV + '.csv'
-                          ..style.display = 'none'
-                          ..click();
-                      } else {
-                        bool? overwrite = true;
-                        String? fileName;
-                        String? result = await FilePicker.platform.saveFile(
-                          dialogTitle: 'Please select an output file:',
-                          fileName: selectedUsersCSV,
-                          type: FileType.custom,
-                          allowedExtensions: ['csv'],
-                        );
-                        if (result != null) {
-                          fileName = (selectedUsersCSV = result) + '.csv';
-                        }
-                        if (fileName != null) {
-                          if (File(fileName).existsSync()) {
-                            overwrite = await showDialog<bool>(
-                                barrierDismissible: false,
-                                context: context,
-                                builder: (context) {
-                                  return AlertDialog(
-                                    title: Text(fileName! +
-                                        ' already exists. Replace?'),
-                                    actions: <Widget>[
-                                      TextButton(
-                                        child: const Text("Yes"),
-                                        onPressed: () async {
-                                          Navigator.pop(context, true);
-                                        },
-                                      ),
-                                      TextButton(
-                                        child: const Text("No"),
-                                        onPressed: () async {
-                                          Navigator.pop(context, false);
-                                        },
-                                      ),
-                                    ],
-                                  );
-                                });
-                          }
-                          if (overwrite!) {
-                            File(fileName).writeAsString(csvText);
-                          }
-                        } else {
-                          // User canceled the picker
-                        }
+                        download.download(csvUsers, csvText, context);
+                        // if (kIsWeb) {
+                        //   download.download(csvUsers, csvText, context);
+                        //   // html.AnchorElement()
+                        //   //   ..href =
+                        //   //       '${Uri.dataFromString(csvText, mimeType: 'text/plain', encoding: utf8)}'
+                        //   //   ..download = csvUsers + '.csv'
+                        //   //   ..style.display = 'none'
+                        //   //   ..click();
+                        // } else {
+                        //   bool? overwrite = true;
+                        //   String? fileName;
+                        //   String? result = await FilePicker.platform.saveFile(
+                        //     dialogTitle: 'Please select an output file:',
+                        //     fileName: csvUsers,
+                        //     type: FileType.custom,
+                        //     allowedExtensions: ['csv'],
+                        //   );
+                        //   if (result != null) {
+                        //     fileName = (csvUsers = result) + '.csv';
+                        //   }
+                        //   if (fileName != null) {
+                        //     if (File(fileName).existsSync()) {
+                        //       overwrite = await showDialog<bool>(
+                        //           barrierDismissible: false,
+                        //           context: context,
+                        //           builder: (context) {
+                        //             return AlertDialog(
+                        //               title: Text(fileName! +
+                        //                   ' already exists. Replace?'),
+                        //               actions: <Widget>[
+                        //                 TextButton(
+                        //                   child: const Text("Yes"),
+                        //                   onPressed: () async {
+                        //                     Navigator.pop(context, true);
+                        //                   },
+                        //                 ),
+                        //                 TextButton(
+                        //                   child: const Text("No"),
+                        //                   onPressed: () async {
+                        //                     Navigator.pop(context, false);
+                        //                   },
+                        //                 ),
+                        //               ],
+                        //             );
+                        //           });
+                        //     }
+                        //     if (overwrite!) {
+                        //       File(fileName).writeAsString(csvText);
+                        //     }
+                        //   } else {
+                        //     // User canceled the picker
+                        //   }
+                        //}
+                        setState(() {});
                       }
-                      setState(() {});
                     }),
               ),
             ],
@@ -243,7 +258,7 @@ class UsersState extends State<Users> {
     );
   }
 
-  HorizontalDataTable dataBody(List<dynamic> data) {
+  HorizontalDataTable dataBody() {
     return HorizontalDataTable(
       leftHandSideColumnWidth: headers[0].width + 70,
       rightHandSideColumnWidth: Header.totalWidth(headers),
@@ -251,7 +266,8 @@ class UsersState extends State<Users> {
       headerWidgets: _getTitleWidget(),
       leftSideItemBuilder: _generateFirstColumnRow,
       rightSideItemBuilder: _generateRightHandSideColumnRow,
-      itemCount: users.length,
+      itemCount:
+          (users.length + (editedUsers.keys.contains("NewUser") ? 1 : 0)),
       rowSeparatorWidget: const Divider(
         color: Colors.black54,
         height: 1.0,
@@ -357,6 +373,22 @@ class UsersState extends State<Users> {
         .toList();
   }
 
+  bool isInEdit(int index) => index == users.length
+      ? true
+      : editedUsers.isNotEmpty && editedUsers.keys.contains(users[index].id);
+
+  bool isToEdit(int index) => editedUsers.keys.isEmpty;
+
+  String getUserID(int index) =>
+      index == users.length ? "NewUser" : users[index].id;
+
+  Map<String, dynamic>? getUserMap(int index) => editedUsers[getUserID(index)];
+
+  String getUserMapField(int index, String headerKey) =>
+      (editedUsers.isNotEmpty && editedUsers.keys.contains(getUserID(index)))
+          ? getUserMap(index)![headerKey].toString()
+          : users[index][headerKey].toString();
+
   Widget _generateFirstColumnRow(BuildContext context, int index) {
     return Row(
       children: <Widget>[
@@ -372,8 +404,7 @@ class UsersState extends State<Users> {
             crossAxisAlignment: CrossAxisAlignment.start, // this right here
             children: <Widget>[
               Visibility(
-                  visible: selectedUsers.isNotEmpty &&
-                      selectedUsers.contains(users[index].id),
+                  visible: isInEdit(index),
                   child: Tooltip(
                       message: "Save",
                       child: SizedBox(
@@ -382,23 +413,26 @@ class UsersState extends State<Users> {
                             child: const Icon(Icons.save,
                                 color: Colors.green, size: 20),
                             onPressed: () async {
-                              if (selectedUsers.isNotEmpty &&
-                                  selectedUsers.contains(users[index].id)) {
-                                Map<String, dynamic> map = editedUsers[
-                                    selectedUsers.indexOf(users[index].id)];
-                                await FirebaseFirestore.instance
-                                    .collection('Users')
-                                    .doc(users[index].id)
-                                    .update(map);
-                                selectedUsers.remove(users[index].id);
-                                editedUsers.remove(map);
+                              if (isInEdit(index)) {
+                                String id = getUserID(index);
+                                Map<String, dynamic>? map = getUserMap(index);
+                                if (editedUsers.keys.contains("NewUser")) {
+                                  await FirebaseFirestore.instance
+                                      .collection('Users')
+                                      .add(map!);
+                                } else {
+                                  await FirebaseFirestore.instance
+                                      .collection('Users')
+                                      .doc(getUserID(index))
+                                      .update(map!);
+                                }
+                                editedUsers.remove(id);
                               }
                               setState(() {});
                             },
                           )))),
               Visibility(
-                  visible: selectedUsers.isNotEmpty &&
-                      selectedUsers.contains(users[index].id),
+                  visible: isInEdit(index),
                   child: Tooltip(
                       message: "Cancel",
                       child: SizedBox(
@@ -407,19 +441,14 @@ class UsersState extends State<Users> {
                             child: const Icon(Icons.cancel,
                                 color: Colors.red, size: 20),
                             onPressed: () async {
-                              if (selectedUsers.isNotEmpty &&
-                                  selectedUsers.contains(users[index].id)) {
-                                Map<String, dynamic> map = editedUsers[
-                                    selectedUsers.indexOf(users[index].id)];
-                                selectedUsers.remove(users[index].id);
-                                editedUsers.remove(map);
+                              if (isInEdit(index)) {
+                                editedUsers.remove(getUserID(index));
                               }
                               setState(() {});
                             },
                           )))),
               Visibility(
-                  visible: selectedUsers.isEmpty ||
-                      !selectedUsers.contains(users[index].id),
+                  visible: isToEdit(index),
                   child: Tooltip(
                       message: "Edit",
                       child: SizedBox(
@@ -428,19 +457,42 @@ class UsersState extends State<Users> {
                             child: const Icon(Icons.edit,
                                 color: Colors.blue, size: 20),
                             onPressed: () async {
-                              if (selectedUsers.isEmpty ||
-                                  !selectedUsers.contains(users[index].id)) {
+                              if (isToEdit(index)) {
                                 Map<String, dynamic> map = {
                                   for (var header in headers)
-                                    header.headerKey: users[index]
-                                        [header.headerKey]
+                                    header.headerKey:
+                                        getUserMapField(index, header.headerKey)
                                 };
-                                editedUsers.add(map);
-                                selectedUsers.add(users[index].id);
+                                editedUsers.addAll({getUserID(index): map});
                               }
                               setState(() {});
                             },
-                          ))))
+                          )))),
+              Visibility(
+                  visible: isToEdit(index),
+                  child: Tooltip(
+                      message: "Select",
+                      child: SizedBox(
+                          width: 25.0,
+                          child: TextButton(
+                            child: Icon(
+                                selectedUsers.isNotEmpty &&
+                                        selectedUsers.contains(getUserID(index))
+                                    ? Icons.add_circle
+                                    : Icons.add_circle_outline,
+                                color: Colors.grey,
+                                size: 20),
+                            onPressed: () async {
+                              if (isToEdit(index)) {
+                                if (selectedUsers.contains(getUserID(index))) {
+                                  selectedUsers.remove(getUserID(index));
+                                } else {
+                                  selectedUsers.add(getUserID(index));
+                                }
+                              }
+                              setState(() {});
+                            },
+                          )))),
             ]),
       ],
     );
@@ -472,21 +524,15 @@ class UsersState extends State<Users> {
       BuildContext context, FieldHeader header, int index) {
     return DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-      value:
-          (selectedUsers.isNotEmpty && selectedUsers.contains(users[index].id))
-              ? editedUsers[selectedUsers.indexOf(users[index].id)]
-                      [header.headerKey]
-                  .toString()
-              : users[index][header.headerKey].toString(),
+      value: getUserMapField(index, header.headerKey),
       isDense: true,
       onChanged: (value) {
-        if (header.editable && selectedUsers.contains(users[index].id)) {
-          String user = users[index].id;
-          editedUsers[selectedUsers.indexOf(user)][header.headerKey] = value;
+        if (header.editable && editedUsers.keys.contains(getUserID(index))) {
+          getUserMap(index)![header.headerKey] = value;
           setState(() {});
         }
       },
-      items: header.editable && selectedUsers.contains(users[index].id)
+      items: header.editable && editedUsers.keys.contains(getUserID(index))
           ? header.headerChoices.map((String value) {
               return DropdownMenuItem<String>(
                 value: value,
@@ -495,8 +541,8 @@ class UsersState extends State<Users> {
             }).toList()
           : [
               DropdownMenuItem<String>(
-                value: users[index][header.headerKey].toString(),
-                child: Text((users[index][header.headerKey].toString())),
+                value: getUserMapField(index, header.headerKey),
+                child: Text(getUserMapField(index, header.headerKey)),
               )
             ],
     ));
@@ -508,22 +554,17 @@ class UsersState extends State<Users> {
       // initialValue:
       //     users[index][header.headerKey].toString(),
       controller: TextEditingController(
-        text: (selectedUsers.isNotEmpty &&
-                selectedUsers.contains(users[index].id))
-            ? editedUsers[selectedUsers.indexOf(users[index].id)]
-                    [header.headerKey]
-                .toString()
-            : users[index][header.headerKey].toString(),
+        text: getUserMapField(index, header.headerKey),
       ),
       onChanged: (value) {
-        editedUsers[selectedUsers.indexOf(users[index].id)][header.headerKey] =
-            value;
+        getUserMap(index)![header.headerKey] = value;
       },
-      enabled: header.editable && selectedUsers.contains(users[index].id),
+      enabled: header.editable && editedUsers.keys.contains(getUserID(index)),
       style: TextStyle(
-          decoration: header.editable && selectedUsers.contains(users[index].id)
-              ? TextDecoration.underline
-              : TextDecoration.none),
+          decoration:
+              header.editable && editedUsers.keys.contains(getUserID(index))
+                  ? TextDecoration.underline
+                  : TextDecoration.none),
       decoration: const InputDecoration(
         border: InputBorder.none,
       ),
@@ -543,7 +584,7 @@ class UsersState extends State<Users> {
         if (header.editable) {
           if (header.headerType == "date") {
             DateTime? currentDate =
-                DateTime.parse(users[index][header.headerKey].toString());
+                DateTime.parse(getUserMapField(index, header.headerKey));
 
             FocusScope.of(context).requestFocus(FocusNode());
 
@@ -554,8 +595,8 @@ class UsersState extends State<Users> {
                 lastDate: DateTime(2100));
 
             if (newDate != null && newDate != currentDate) {
-              editedUsers[selectedUsers.indexOf(users[index].id)]
-                  [header.headerKey] = newDate.toString().substring(0, 10);
+              getUserMap(index)![header.headerKey] =
+                  newDate.toString().substring(0, 10);
             }
           }
         }

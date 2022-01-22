@@ -30,20 +30,6 @@ class Reservation extends StatefulWidget {
 }
 
 class _ReservationState extends State<Reservation> {
-  int _counter = 0;
-
-//  List<Platz> PlatzList;
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Table(
@@ -55,7 +41,7 @@ class _ReservationState extends State<Reservation> {
           return TableRow(
             children: [
               Padding(
-                padding: EdgeInsets.all(5.0),
+                padding: const EdgeInsets.all(5.0),
                 child: ElevatedButton(
                   onPressed: () {
                     showDialog(
@@ -69,19 +55,20 @@ class _ReservationState extends State<Reservation> {
                               ],
                             ));
                   },
-                  child: Text(person.id.toString(), textAlign: TextAlign.center),
+                  child:
+                      Text(person.id.toString(), textAlign: TextAlign.center),
                 ),
               ),
               Padding(
-                padding: EdgeInsets.all(5.0),
+                padding: const EdgeInsets.all(5.0),
                 child: Text(person.name, textAlign: TextAlign.center),
               ),
               Padding(
-                padding: EdgeInsets.all(5.0),
+                padding: const EdgeInsets.all(5.0),
                 child: Text(person.email, textAlign: TextAlign.center),
               ),
               Padding(
-                padding: EdgeInsets.all(5.0),
+                padding: const EdgeInsets.all(5.0),
                 child: Text(person.phone, textAlign: TextAlign.center),
               ),
             ],
