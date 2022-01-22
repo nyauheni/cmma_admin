@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firedart/firedart.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:horizontal_data_table/horizontal_data_table.dart';
@@ -65,11 +66,14 @@ class UsersState extends State<Users> {
         children: <Widget>[
           Expanded(
             child: StreamBuilder(
-              stream:
-                  FirebaseFirestore.instance.collection("Users").snapshots(),
+              stream: (!kIsWeb)
+                  ? Firestore.instance.collection("Users").stream
+                  : FirebaseFirestore.instance.collection("Users").snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
-                  users = (snapshot.data as QuerySnapshot).docs;
+                  users = (!kIsWeb)
+                      ? snapshot.data as List<dynamic>
+                      : (snapshot.data as QuerySnapshot).docs;
 
                   if (sortOrder != 0) {
                     users.sort((a, b) {
@@ -123,10 +127,15 @@ class UsersState extends State<Users> {
                       } else {
                         if (selectedUsers.isNotEmpty) {
                           for (String id in selectedUsers) {
-                            FirebaseFirestore.instance
-                                .collection('Users')
-                                .doc(id)
-                                .delete();
+                            (!kIsWeb)
+                                ? Firestore.instance
+                                    .collection("Users")
+                                    .document(id)
+                                    .delete()
+                                : FirebaseFirestore.instance
+                                    .collection('Users')
+                                    .doc(id)
+                                    .delete();
                           }
                           selectedUsers.clear();
                         }
@@ -194,59 +203,6 @@ class UsersState extends State<Users> {
                             .convert(rows, fieldDelimiter: ';');
 
                         download.download(csvUsers, csvText, context);
-                        // if (kIsWeb) {
-                        //   download.download(csvUsers, csvText, context);
-                        //   // html.AnchorElement()
-                        //   //   ..href =
-                        //   //       '${Uri.dataFromString(csvText, mimeType: 'text/plain', encoding: utf8)}'
-                        //   //   ..download = csvUsers + '.csv'
-                        //   //   ..style.display = 'none'
-                        //   //   ..click();
-                        // } else {
-                        //   bool? overwrite = true;
-                        //   String? fileName;
-                        //   String? result = await FilePicker.platform.saveFile(
-                        //     dialogTitle: 'Please select an output file:',
-                        //     fileName: csvUsers,
-                        //     type: FileType.custom,
-                        //     allowedExtensions: ['csv'],
-                        //   );
-                        //   if (result != null) {
-                        //     fileName = (csvUsers = result) + '.csv';
-                        //   }
-                        //   if (fileName != null) {
-                        //     if (File(fileName).existsSync()) {
-                        //       overwrite = await showDialog<bool>(
-                        //           barrierDismissible: false,
-                        //           context: context,
-                        //           builder: (context) {
-                        //             return AlertDialog(
-                        //               title: Text(fileName! +
-                        //                   ' already exists. Replace?'),
-                        //               actions: <Widget>[
-                        //                 TextButton(
-                        //                   child: const Text("Yes"),
-                        //                   onPressed: () async {
-                        //                     Navigator.pop(context, true);
-                        //                   },
-                        //                 ),
-                        //                 TextButton(
-                        //                   child: const Text("No"),
-                        //                   onPressed: () async {
-                        //                     Navigator.pop(context, false);
-                        //                   },
-                        //                 ),
-                        //               ],
-                        //             );
-                        //           });
-                        //     }
-                        //     if (overwrite!) {
-                        //       File(fileName).writeAsString(csvText);
-                        //     }
-                        //   } else {
-                        //     // User canceled the picker
-                        //   }
-                        //}
                         setState(() {});
                       }
                     }),
@@ -417,14 +373,24 @@ class UsersState extends State<Users> {
                                 String id = getUserID(index);
                                 Map<String, dynamic>? map = getUserMap(index);
                                 if (editedUsers.keys.contains("NewUser")) {
-                                  await FirebaseFirestore.instance
-                                      .collection('Users')
-                                      .add(map!);
+                                  (!kIsWeb)
+                                      ? await Firestore.instance
+                                          .collection("Users")
+                                          .add(map!)
+                                      : await FirebaseFirestore.instance
+                                          .collection('Users')
+                                          .add(map!);
+                                  ;
                                 } else {
-                                  await FirebaseFirestore.instance
-                                      .collection('Users')
-                                      .doc(getUserID(index))
-                                      .update(map!);
+                                  (!kIsWeb)
+                                      ? await Firestore.instance
+                                          .collection("Users")
+                                          .document(getUserID(index))
+                                          .update(map!)
+                                      : await FirebaseFirestore.instance
+                                          .collection('Users')
+                                          .doc(getUserID(index))
+                                          .update(map!);
                                 }
                                 editedUsers.remove(id);
                               }

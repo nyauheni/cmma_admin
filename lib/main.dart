@@ -1,4 +1,4 @@
-import 'package:firebase_core/firebase_core.dart';
+import 'package:firedart/firedart.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cmma_admin/reservation.dart';
@@ -6,13 +6,16 @@ import 'package:cmma_admin/users.dart';
 
 void main() async {
   if (!kIsWeb) {
-    await Firebase.initializeApp(
-        options: const FirebaseOptions(
-      apiKey: 'AIzaSyBm54--sB48BMZmmxWf9lymsEyofP8sms4',
-      appId: '1:543903890015:web:1277c5062c276f8ab4f9ea',
-      messagingSenderId: '543903890015',
-      projectId: 'cmma-1e6df',
-    ));
+    // await Firebase.initializeApp(
+    //     options: const FirebaseOptions(
+    //   apiKey: 'AIzaSyBm54--sB48BMZmmxWf9lymsEyofP8sms4',
+    //   appId: '1:543903890015:web:1277c5062c276f8ab4f9ea',
+    //   messagingSenderId: '543903890015',
+    //   projectId: 'cmma-1e6df',
+    // ));
+    Firestore.initialize(
+      'cmma-1e6df',
+    );
   }
 
   runApp(MaterialApp(
