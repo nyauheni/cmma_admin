@@ -1,16 +1,20 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:cmma_admin/firebase_options.dart';
 import 'package:cmma_admin/reservation.dart';
 import 'package:cmma_admin/users.dart';
 
 void main() async {
   if (!kIsWeb) {
     await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+        options: const FirebaseOptions(
+      apiKey: 'AIzaSyBm54--sB48BMZmmxWf9lymsEyofP8sms4',
+      appId: '1:543903890015:web:1277c5062c276f8ab4f9ea',
+      messagingSenderId: '543903890015',
+      projectId: 'cmma-1e6df',
+    ));
   }
+
   runApp(MaterialApp(
     title: 'Flutter Demo',
     debugShowCheckedModeBanner: false,
