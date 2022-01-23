@@ -47,3 +47,16 @@ void download(String csvFile, String csvText, BuildContext context) async {
     // User canceled the picker
   }
 }
+
+Future<String?> upload(BuildContext context) async {
+  FilePickerResult? result = await FilePicker.platform.pickFiles(
+    dialogTitle: 'Please select an input file:',
+    type: FileType.custom,
+    allowedExtensions: ['csv'],
+  );
+  if (result != null) {
+    return File(result.files.single.path!).readAsString();
+  } else {
+    return null;
+  }
+}

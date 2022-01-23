@@ -181,7 +181,7 @@ class UsersState extends State<Users> {
               Padding(
                 padding: const EdgeInsets.all(20.0),
                 child: OutlinedButton(
-                    child: Text(kIsWeb ? 'DOWNLOAD CSV' : 'EXPORT CSV'),
+                    child: const Text('EXPORT CSV'),
                     onPressed: () async {
                       if (editedUsers.isNotEmpty) {
                         return null;
@@ -203,6 +203,60 @@ class UsersState extends State<Users> {
                             .convert(rows, fieldDelimiter: ';');
 
                         download.download(csvUsers, csvText, context);
+                        setState(() {});
+                      }
+                    }),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: OutlinedButton(
+                    child: const Text('IMPORT CSV'),
+                    onPressed: () async {
+                      if (editedUsers.isNotEmpty) {
+                        return null;
+                      } else {
+                        String? csvText = await download.upload(context);
+                        List<List<dynamic>> csvList =
+                            const CsvToListConverter().convert(csvText);
+
+                        for (int iE = 1; iE < csvList.length; iE++) {
+                          bool isMatch = true;
+                          outer:
+                          for (int iI = 0; iI < users.length; iI++) {
+                            inner:
+                            for (var headerIn in headers) {
+                              for (int kE = 0; kE < csvList[0].length; kE++) {
+                                if (headerIn.headerTitle == csvList[0][kE]) {
+                                  if (users[iI][headerIn.headerKey] !=
+                                      csvList[iE][kE]) {
+                                    isMatch = false;
+                                  }
+                                  break inner;
+                                }
+                              }
+                            }
+                            if (isMatch) break outer;
+                          }
+                          if (!isMatch) {
+                            Map<String, dynamic> map = {};
+                            for (var headerIn in headers) {
+                              for (int kE = 0; kE < csvList[0].length; kE++) {
+                                if (headerIn.headerTitle == csvList[0][kE]) {
+                                  map.addAll(
+                                      {headerIn.headerKey: csvList[iE][kE]});
+                                }
+                              }
+                            }
+                            (!kIsWeb)
+                                ? await Firestore.instance
+                                    .collection("Users")
+                                    .add(map)
+                                : await FirebaseFirestore.instance
+                                    .collection('Users')
+                                    .add(map);
+                          }
+                        }
+
                         setState(() {});
                       }
                     }),
@@ -380,7 +434,6 @@ class UsersState extends State<Users> {
                                       : await FirebaseFirestore.instance
                                           .collection('Users')
                                           .add(map!);
-                                  ;
                                 } else {
                                   (!kIsWeb)
                                       ? await Firestore.instance
