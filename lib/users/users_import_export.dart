@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:csv/csv.dart';
 
-import 'import_export_desktop.dart' if (dart.library.html) 'import_export_web.dart'
-    as download;
+import 'import_export_desktop.dart'
+    if (dart.library.html) 'import_export_web.dart' as download;
 
 class UsersImportExport {
   static void export(
@@ -14,9 +14,12 @@ class UsersImportExport {
 
   static Future<List<List<dynamic>>> import(
       String csvUsers, BuildContext context) async {
+    List<List<dynamic>> rows = [];
     String? csvText = await download.import(context);
-    List<List<dynamic>> rows = const CsvToListConverter()
-        .convert(csvText, fieldDelimiter: ';', shouldParseNumbers: false);
+    if (csvText != null) {
+      rows = const CsvToListConverter()
+          .convert(csvText, fieldDelimiter: ';', shouldParseNumbers: false);
+    }
     return rows;
   }
 }

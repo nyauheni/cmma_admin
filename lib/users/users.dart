@@ -33,6 +33,15 @@ class UsersState extends State<Users> {
   List<double> headerTextWidth = [];
   List<double> fieldWidth = [];
 
+  static const FontWeight charHeaderWeight = FontWeight.bold;
+  static const FontWeight charWeight = FontWeight.normal;
+  static const FontStyle charHeaderStyle = FontStyle.italic;
+  static const FontStyle charStyle = FontStyle.normal;
+  static const Color charHeaderColor = Colors.red;
+  static const Color charColor = Colors.black;
+  static const String charHeaderFamily = '';
+  static const String charFamily = '';
+
   static const double minCharWidth = 8;
   static const double maxCharWidth = 64;
 
@@ -193,11 +202,9 @@ class UsersState extends State<Users> {
                       iHeader < _getHeaderCount();
                       iHeader++) {
                     headerTextWidth[iHeader] = calcTextSize(
-                            _getHeaderTitle(iHeader),
-                            TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: charWidth))
-                        .width;
+                      _getHeaderTitle(iHeader),
+                      _getHeaderTextStyle(iHeader),
+                    ).width;
                     fieldWidth[iHeader] = headerTextWidth[iHeader] +
                         charWidth +
                         charWidth +
@@ -209,18 +216,18 @@ class UsersState extends State<Users> {
                     if (_getHeaderType(iHeader) == "list") {
                       for (var iHeaderChoice in _getHeaderChoices(iHeader)) {
                         double width = calcTextSize(
-                                iHeaderChoice, TextStyle(fontSize: charWidth))
+                                iHeaderChoice, _getFieldTextStyle(iHeader))
                             .width;
+                        width += charWidth; // + charWidth; // + charWidth;
                         if (width > fieldWidth[iHeader]) {
                           fieldWidth[iHeader] = width;
                         }
                       }
-                      fieldWidth[iHeader] += charWidth + charWidth + charWidth;
                     } else {
                       for (int iUser = 0; iUser < _getUsersCount(); iUser++) {
                         double width = calcTextSize(
                                 getUserMapField(iUser, iHeader),
-                                TextStyle(fontSize: charWidth))
+                                _getFieldTextStyle(iHeader))
                             .width;
                         if (width > fieldWidth[iHeader]) {
                           fieldWidth[iHeader] = width;
@@ -391,8 +398,7 @@ class UsersState extends State<Users> {
                     Container(
                       child: Text(
                         _getHeaderTitle(iHeader),
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: charWidth),
+                        style: _getHeaderTextStyle(iHeader),
                       ),
                       alignment: Alignment.centerLeft,
                       width: paddingLeft +
@@ -469,9 +475,7 @@ class UsersState extends State<Users> {
                             filterToFilter[iHeader] = value;
                             setState(() {});
                           },
-                          style: TextStyle(
-                              decoration: TextDecoration.none,
-                              fontSize: charWidth),
+                          style: _getFieldTextStyle(iHeader),
                           textAlignVertical: TextAlignVertical.center,
                           decoration: InputDecoration(
                               border: headerToFilter[iHeader]
@@ -645,13 +649,13 @@ class UsersState extends State<Users> {
             //   return _getHeaderChoices(iHeader).map((String value) {
             //     return Container(
             //         alignment: Alignment.centerRight,
-            //         child: Text(value, style: TextStyle(fontSize: charWidth)));
+            //         child: Text(value, style: style: _getFieldTextStyle(iHeader)));
             //   }).toList();
             // },
             items: _getHeaderChoices(iHeader).map((String value) {
               return DropdownMenuItem<String>(
                 value: value,
-                child: Text(value, style: TextStyle(fontSize: charWidth)),
+                child: Text(value, style: _getFieldTextStyle(iHeader)),
               );
             }).toList(),
           )));
@@ -672,12 +676,10 @@ class UsersState extends State<Users> {
       },
       enabled: _canHeaderEdit(iHeader) &&
           editedUsers.keys.contains(getUserID(iUser)),
-      style: TextStyle(
-          decoration: _canHeaderEdit(iHeader) &&
-                  editedUsers.keys.contains(getUserID(iUser))
-              ? TextDecoration.underline
-              : TextDecoration.none,
-          fontSize: charWidth),
+      style:
+          _canHeaderEdit(iHeader) && editedUsers.keys.contains(getUserID(iUser))
+              ? _getEditedFieldTextStyle(iHeader)
+              : _getFieldTextStyle(iHeader),
       decoration:
           const InputDecoration(border: InputBorder.none, isDense: true),
       //textAlignVertical: TextAlignVertical.center,
@@ -714,6 +716,36 @@ class UsersState extends State<Users> {
         }
       },
     );
+  }
+
+  TextStyle _getHeaderTextStyle(int iHeader) {
+    return TextStyle(
+        decoration: TextDecoration.none,
+        color: charHeaderColor,
+        fontStyle: charHeaderStyle,
+        fontWeight: charHeaderWeight,
+        fontSize: charWidth,
+        fontFamily: charHeaderFamily);
+  }
+
+  TextStyle _getFieldTextStyle(int iHeader) {
+    return TextStyle(
+        decoration: TextDecoration.none,
+        color: charColor,
+        fontStyle: charStyle,
+        fontWeight: charWeight,
+        fontSize: charWidth,
+        fontFamily: charFamily);
+  }
+
+  TextStyle _getEditedFieldTextStyle(int iHeader) {
+    return TextStyle(
+        decoration: TextDecoration.underline,
+        color: charColor,
+        fontStyle: charStyle,
+        fontWeight: charWeight,
+        fontSize: charWidth,
+        fontFamily: charFamily);
   }
 }
 

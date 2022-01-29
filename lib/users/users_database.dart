@@ -108,52 +108,54 @@ class UsersDatabase {
 
   void import(
       String csvUsers, UsersHeader usersHeader, BuildContext context) async {
-    List<List<dynamic>> csvList = await
-        UsersImportExport.import(csvUsers, context);
-    List<int> cols = List.generate(usersHeader.getCount(), (index) => -1);
-    for (int kI = 0; kI < usersHeader.getCount(); kI++) {
-      for (int kE = 0; kE < csvList[0].length; kE++) {
-        if (usersHeader.getTitle(kI) == csvList[0][kE].toString()) {
-          cols[kI] = kE;
-          break;
-        }
-      }
-    }
-    List<int> rows = [];
-    for (int iE = 1; iE < csvList.length; iE++) {
-      late bool isMatch;
-      outer:
-      for (int iI = 0; iI < _users.length; iI++) {
-        isMatch = true;
-        for (int kI = 0; kI < usersHeader.getCount(); kI++) {
-          if (cols[kI] >= 0) {
-            if (_users[iI][usersHeader.getKey(kI)].toString() !=
-                csvList[iE][cols[kI]].toString()) {
-              isMatch = false;
-              break;
-            }
+    List<List<dynamic>> csvList =
+        await UsersImportExport.import(csvUsers, context);
+    if (csvList.isNotEmpty) {
+      List<int> cols = List.generate(usersHeader.getCount(), (index) => -1);
+      for (int kI = 0; kI < usersHeader.getCount(); kI++) {
+        for (int kE = 0; kE < csvList[0].length; kE++) {
+          if (usersHeader.getTitle(kI) == csvList[0][kE].toString()) {
+            cols[kI] = kE;
+            break;
           }
         }
-        if (isMatch) break outer;
       }
-      if (!isMatch) {
-        rows.add(iE);
-      }
-    }
-    for (int iE = 0; iE < rows.length; iE++) {
-      Map<String, dynamic> map = {};
-      for (int kI = 0; kI < usersHeader.getCount(); kI++) {
-        if (cols[kI] >= 0) {
-          map.addAll({
-            usersHeader.getKey(kI): csvList[rows[iE]][cols[kI]].toString()
-          });
-        } else {
-          map.addAll({usersHeader.getKey(kI): ""});
+      List<int> rows = [];
+      for (int iE = 1; iE < csvList.length; iE++) {
+        late bool isMatch;
+        outer:
+        for (int iI = 0; iI < _users.length; iI++) {
+          isMatch = true;
+          for (int kI = 0; kI < usersHeader.getCount(); kI++) {
+            if (cols[kI] >= 0) {
+              if (_users[iI][usersHeader.getKey(kI)].toString() !=
+                  csvList[iE][cols[kI]].toString()) {
+                isMatch = false;
+                break;
+              }
+            }
+          }
+          if (isMatch) break outer;
+        }
+        if (!isMatch) {
+          rows.add(iE);
         }
       }
-      (!kIsWeb)
-          ? await Firestore.instance.collection("Users").add(map)
-          : await FirebaseFirestore.instance.collection('Users').add(map);
+      for (int iE = 0; iE < rows.length; iE++) {
+        Map<String, dynamic> map = {};
+        for (int kI = 0; kI < usersHeader.getCount(); kI++) {
+          if (cols[kI] >= 0) {
+            map.addAll({
+              usersHeader.getKey(kI): csvList[rows[iE]][cols[kI]].toString()
+            });
+          } else {
+            map.addAll({usersHeader.getKey(kI): ""});
+          }
+        }
+        (!kIsWeb)
+            ? await Firestore.instance.collection("Users").add(map)
+            : await FirebaseFirestore.instance.collection('Users').add(map);
+      }
     }
   }
 }
