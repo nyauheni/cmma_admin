@@ -2,7 +2,7 @@ import 'package:firedart/firedart.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cmma_admin/reservation.dart';
-import 'package:cmma_admin/users.dart';
+import 'package:cmma_admin/users/users.dart';
 
 void main() async {
   if (!kIsWeb) {
@@ -19,7 +19,7 @@ void main() async {
   }
 
   runApp(MaterialApp(
-    title: 'Flutter Demo',
+    title: 'CMMA Administration',
     debugShowCheckedModeBanner: false,
     theme: ThemeData(
       primarySwatch: Colors.blue,
