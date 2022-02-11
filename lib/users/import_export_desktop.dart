@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -56,6 +57,22 @@ Future<String?> import(BuildContext context) async {
   );
   if (result != null) {
     return File(result.files.single.path!).readAsString();
+
+// final file = File(result.files.single.path!);
+//   Stream<String> lines = file.openRead()
+//     .transform(utf8.decoder)       // Decode bytes to UTF-8.
+//     .transform(const LineSplitter());    // Convert stream to individual lines.
+//   try {
+//     await for (var line in lines) {
+//       print('$line: ${line.length} characters');
+//     }
+//     print('File is now closed.');
+//   } catch (e) {
+//     print('Error: $e');
+//   }
+//   List<String> list = await lines.toList();
+//   return list.join();
+
   } else {
     return null;
   }

@@ -15,7 +15,7 @@ class Users extends StatefulWidget {
 class UsersState extends State<Users> {
   final HDTRefreshController _hdtRefreshController = HDTRefreshController();
 
-  final UsersHeader _usersHeader = UsersHeader("");
+  final UsersHeader _usersHeader = UsersHeader("UsersHeader");
   final UsersDatabase _usersDatabase = UsersDatabase("Users");
 
   Map<String, Map<String, String>> editedUsers = {};
@@ -54,11 +54,14 @@ class UsersState extends State<Users> {
 
   @override
   void initState() {
-    _usersHeader.setHeader();
-    headerToFilter = List.filled(_usersHeader.getCount(), false);
-    filterToFilter = List.filled(_usersHeader.getCount(), '');
-    rescale();
     super.initState();
+    rescale();
+
+    _usersHeader.setHeader().then((result) {
+      headerToFilter = List.filled(_usersHeader.getCount(), false);
+      filterToFilter = List.filled(_usersHeader.getCount(), '');
+      setState(() {});
+    });
   }
 
   @override
@@ -173,10 +176,15 @@ class UsersState extends State<Users> {
     rowHeight = charWidth * 2;
     scrolBarThickness = charWidth / 2;
   }
+
 //#endregion
 
   @override
   Widget build(BuildContext context) {
+    if (headerToFilter.isEmpty) {
+      //return Container();
+      return const CircularProgressIndicator();
+    }
     return Scaffold(
       // appBar: AppBar(
       //   title: Text(widget.title),
