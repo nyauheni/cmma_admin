@@ -1,6 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firedart/firedart.dart';
-import 'package:flutter/foundation.dart';
 
 const String keyemail = "email";
 const String keyfirstname = "firstname";
@@ -23,10 +23,11 @@ class UsersHeader {
   final String _collectionName;
   UsersHeader(this._collectionName);
 
-  final List<dynamic> _headerList = [];
   bool toAdd = false;
   bool toLoad = true;
   bool toClean = false;
+
+  final List<dynamic> _header = [];
 
   Future<void> setHeader() async {
     if (toClean) {
@@ -56,20 +57,19 @@ class UsersHeader {
         Page<Document> page =
             await Firestore.instance.collection(_collectionName).get();
         for (var element in page) {
-          _headerList.add(element);
+          _header.add(element);
         }
       } else {
         QuerySnapshot querySnapshot =
             await FirebaseFirestore.instance.collection(_collectionName).get();
         for (var element in querySnapshot.docs) {
-          _headerList.add(element);
+          _header.add(element);
         }
       }
     }
 
-    if (_headerList.isEmpty)
-    {
-      _headerList.add({
+    if (_header.isEmpty) {
+      _header.add({
         "Key": keyemail,
         "Title": "E-mail",
         "Type": "text",
@@ -77,7 +77,7 @@ class UsersHeader {
         "Defaults": ["E-mail"],
         "Edit": true,
       });
-      _headerList.add({
+      _header.add({
         "Key": keyfirstname,
         "Title": "Vorname",
         "Type": "text",
@@ -85,7 +85,7 @@ class UsersHeader {
         "Defaults": ["Vorname"],
         "Edit": true,
       });
-      _headerList.add({
+      _header.add({
         "Key": keylastname,
         "Title": "Name",
         "Type": "text",
@@ -93,7 +93,7 @@ class UsersHeader {
         "Defaults": ["Name"],
         "Edit": true,
       });
-      _headerList.add({
+      _header.add({
         "Key": keypartner,
         "Title": "Elter/Partner",
         "Type": "text",
@@ -101,7 +101,7 @@ class UsersHeader {
         "Defaults": [""],
         "Edit": true,
       });
-      _headerList.add({
+      _header.add({
         "Key": keycost,
         "Title": "Beitrag",
         "Type": "list",
@@ -109,7 +109,7 @@ class UsersHeader {
         "Defaults": ["250", "200", "130", "80", "30"],
         "Edit": true,
       });
-      _headerList.add({
+      _header.add({
         "Key": keyextracost,
         "Title": "Beitrag zusatz",
         "Type": "text",
@@ -117,7 +117,7 @@ class UsersHeader {
         "Defaults": ["0"],
         "Edit": true,
       });
-      _headerList.add({
+      _header.add({
         "Key": keymembership,
         "Title": "Status",
         "Type": "list",
@@ -131,7 +131,7 @@ class UsersHeader {
         ],
         "Edit": true,
       });
-      _headerList.add({
+      _header.add({
         "Key": keybirthday,
         "Title": "Geboren am",
         "Type": "date",
@@ -139,7 +139,7 @@ class UsersHeader {
         "Defaults": ["1900-01-01"],
         "Edit": true,
       });
-      _headerList.add({
+      _header.add({
         "Key": keybirthplace,
         "Title": "Geboren in",
         "Type": "text",
@@ -147,7 +147,7 @@ class UsersHeader {
         "Defaults": [""],
         "Edit": true,
       });
-      _headerList.add({
+      _header.add({
         "Key": keycity,
         "Title": "Wohnort",
         "Type": "text",
@@ -155,7 +155,7 @@ class UsersHeader {
         "Defaults": [""],
         "Edit": true,
       });
-      _headerList.add({
+      _header.add({
         "Key": keyadress,
         "Title": "Adresse",
         "Type": "text",
@@ -163,7 +163,7 @@ class UsersHeader {
         "Defaults": [""],
         "Edit": true,
       });
-      _headerList.add({
+      _header.add({
         "Key": keystreet,
         "Title": "Straße",
         "Type": "text",
@@ -171,7 +171,7 @@ class UsersHeader {
         "Defaults": [""],
         "Edit": true,
       });
-      _headerList.add({
+      _header.add({
         "Key": keytelefon,
         "Title": "Telefon",
         "Type": "text",
@@ -179,7 +179,7 @@ class UsersHeader {
         "Defaults": [""],
         "Edit": true,
       });
-      _headerList.add({
+      _header.add({
         "Key": keybankowner,
         "Title": "Kontoinhaber",
         "Type": "text",
@@ -187,7 +187,7 @@ class UsersHeader {
         "Defaults": [""],
         "Edit": true,
       });
-      _headerList.add({
+      _header.add({
         "Key": keybank,
         "Title": "Bank",
         "Type": "text",
@@ -195,7 +195,7 @@ class UsersHeader {
         "Defaults": [""],
         "Edit": true,
       });
-      _headerList.add({
+      _header.add({
         "Key": keyiban,
         "Title": "IBAN",
         "Type": "text",
@@ -205,48 +205,61 @@ class UsersHeader {
       });
 
       if (toAdd) {
-        for (int iHeader = 0; iHeader < _headerList.length; iHeader++) {
+        for (int iHeader = 0; iHeader < _header.length; iHeader++) {
           (!kIsWeb)
               ? await Firestore.instance
                   .collection(_collectionName)
-                  .add(_headerList[iHeader])
+                  .add(_header[iHeader])
               : await FirebaseFirestore.instance
                   .collection(_collectionName)
-                  .add(_headerList[iHeader]);
+                  .add(_header[iHeader]);
         }
       }
     }
   }
 
   int getCount() {
-    return _headerList.length;
+    return _header.length;
   }
 
   String getKey(int index) {
-    return _headerList[index]["Key"].toString();
+    return _header[index]["Key"].toString();
   }
 
   String getTitle(int index) {
-    return _headerList[index]["Title"].toString();
+    return _header[index]["Title"].toString();
   }
 
   String getType(int index) {
-    return _headerList[index]["Type"].toString();
+    return _header[index]["Type"].toString();
   }
 
   String getSort(int index) {
-    return _headerList[index]["Sort"].toString();
+    return _header[index]["Sort"].toString();
   }
 
   List<String> getChoices(int index) {
-    List<String> choices=[];
-    for (var element in _headerList[index]["Defaults"]) {
+    List<String> choices = [];
+    for (var element in _header[index]["Defaults"]) {
       choices.add(element.toString());
     }
     return choices;
   }
 
   bool canEdit(int index) {
-    return _headerList[index]["Edit"].toString().toLowerCase()=='true';
+    return _header[index]["Edit"].toString().toLowerCase() == 'true';
+  }
+
+  List<int> mergeCol(List<String> row) {
+    List<int> cols = List.generate(getCount(), (index) => -1);
+    for (int kI = 0; kI < getCount(); kI++) {
+      for (int kE = 0; kE < row.length; kE++) {
+        if (getTitle(kI) == row[kE].toString()) {
+          cols[kI] = kE;
+          break;
+        }
+      }
+    }
+    return cols;
   }
 }

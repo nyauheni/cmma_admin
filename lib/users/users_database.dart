@@ -1,9 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firedart/firedart.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firedart/firedart.dart';
 import 'package:cmma_admin/users/users_header.dart';
-import 'package:cmma_admin/users/users_import_export.dart';
 
 class UsersDatabase {
   final String _collectionName;
@@ -89,73 +88,39 @@ class UsersDatabase {
         .toList();
   }
 
-  void export(String csvUsers, UsersHeader usersHeader, BuildContext context) {
-    List<List<dynamic>> rows = [];
-    List<dynamic> row = [];
-    for (int iHeader = 0; iHeader < usersHeader.getCount(); iHeader++) {
-      row.add(usersHeader.getTitle(iHeader));
-    }
-    rows.add(row);
-    for (int index = 0; index < _users.length; index++) {
-      List<dynamic> row = [];
-      for (int iHeader = 0; iHeader < usersHeader.getCount(); iHeader++) {
-        row.add(_users[index][usersHeader.getKey(iHeader)].toString());
-      }
-      rows.add(row);
-    }
-    UsersImportExport.export(csvUsers, rows, context);
-  }
-
-  void import(
-      String csvUsers, UsersHeader usersHeader, BuildContext context) async {
-    List<List<dynamic>> csvList =
-        await UsersImportExport.import(csvUsers, context);
-    if (csvList.isNotEmpty) {
-      List<int> cols = List.generate(usersHeader.getCount(), (index) => -1);
+  void mergeRow(
+      List<String> row, List<int> cols, UsersHeader usersHeader) async {
+    late bool isMatch;
+    outer:
+    for (int iI = 0; iI < getCount(); iI++) {
+      isMatch = true;
       for (int kI = 0; kI < usersHeader.getCount(); kI++) {
-        for (int kE = 0; kE < csvList[0].length; kE++) {
-          if (usersHeader.getTitle(kI) == csvList[0][kE].toString()) {
-            cols[kI] = kE;
+        if (cols[kI] >= 0) {
+          if (getField(iI, usersHeader.getKey(kI)) !=
+              row[cols[kI]].toString()) {
+            isMatch = false;
             break;
           }
         }
       }
-      List<int> rows = [];
-      for (int iE = 1; iE < csvList.length; iE++) {
-        late bool isMatch;
-        outer:
-        for (int iI = 0; iI < _users.length; iI++) {
-          isMatch = true;
-          for (int kI = 0; kI < usersHeader.getCount(); kI++) {
-            if (cols[kI] >= 0) {
-              if (_users[iI][usersHeader.getKey(kI)].toString() !=
-                  csvList[iE][cols[kI]].toString()) {
-                isMatch = false;
-                break;
-              }
-            }
-          }
-          if (isMatch) break outer;
-        }
-        if (!isMatch) {
-          rows.add(iE);
+      if (isMatch) {
+        break outer;
+      }
+    }
+    if (!isMatch) {
+      Map<String, dynamic> map = {};
+      for (int kI = 0; kI < usersHeader.getCount(); kI++) {
+        if (cols[kI] >= 0) {
+          map.addAll({usersHeader.getKey(kI): row[cols[kI]].toString()});
+        } else {
+          map.addAll({usersHeader.getKey(kI): ""});
         }
       }
-      for (int iE = 0; iE < rows.length; iE++) {
-        Map<String, dynamic> map = {};
-        for (int kI = 0; kI < usersHeader.getCount(); kI++) {
-          if (cols[kI] >= 0) {
-            map.addAll({
-              usersHeader.getKey(kI): csvList[rows[iE]][cols[kI]].toString()
-            });
-          } else {
-            map.addAll({usersHeader.getKey(kI): ""});
-          }
-        }
-        (!kIsWeb)
-            ? await Firestore.instance.collection("Users").add(map)
-            : await FirebaseFirestore.instance.collection('Users').add(map);
-      }
+      (!kIsWeb)
+          ? await Firestore.instance.collection(_collectionName).add(map)
+          : await FirebaseFirestore.instance
+              .collection(_collectionName)
+              .add(map);
     }
   }
 }

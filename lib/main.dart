@@ -1,6 +1,6 @@
-import 'package:firedart/firedart.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:firedart/firedart.dart';
 import 'package:cmma_admin/reservation.dart';
 import 'package:cmma_admin/users/users.dart';
 
@@ -43,7 +43,7 @@ class HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: (currentIndex == 0)
             ? const Text("Platzreservierung")
-            : Text(Users.title),
+            : Text(Users.collectionName),
         actions: [IconButton(onPressed: () {}, icon: const Icon(Icons.help))],
       ),
       body: (currentIndex == 0) ? Reservation(10) : const Users(),

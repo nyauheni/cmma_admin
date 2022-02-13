@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:horizontal_data_table/horizontal_data_table.dart';
+
+import 'import_export_desktop.dart'
+    if (dart.library.html) 'import_export_web.dart' as download;
+
 import 'package:cmma_admin/users/users_database.dart';
 import 'package:cmma_admin/users/users_header.dart';
+
+//setxkbmap -option 'numpad:microsoft'
 
 class Users extends StatefulWidget {
   const Users({Key? key}) : super(key: key);
 
-  static String title = 'Users';
+  static String collectionName = 'Users';
 
   @override
   UsersState createState() => UsersState();
@@ -16,7 +22,7 @@ class UsersState extends State<Users> {
   final HDTRefreshController _hdtRefreshController = HDTRefreshController();
 
   final UsersHeader _usersHeader = UsersHeader("UsersHeader");
-  final UsersDatabase _usersDatabase = UsersDatabase("Users");
+  final UsersDatabase _usersDatabase = UsersDatabase(Users.collectionName);
 
   Map<String, Map<String, String>> editedUsers = {};
   List<String> selectedUsers = [];
@@ -27,8 +33,6 @@ class UsersState extends State<Users> {
   String sortKey = '';
   String sortType = '';
   int sortOrder = 0;
-
-  String csvUsers = "Users";
 
   List<double> headerTextWidth = [];
   List<double> fieldWidth = [];
@@ -51,6 +55,9 @@ class UsersState extends State<Users> {
   double rowHeight = 0;
   double scrolBarThickness = 0;
   double controlButtonEdgeInsets = 20;
+
+  double progressImportExport = 0;
+  bool abortImportExport = false;
 
   @override
   void initState() {
@@ -98,10 +105,6 @@ class UsersState extends State<Users> {
       _usersDatabase.sort(sortOrder, sortKey, sortType);
   void _filterUsers(String field, String filter) =>
       _usersDatabase.filter(field, filter);
-  void _exportUsers(BuildContext context) =>
-      _usersDatabase.export(csvUsers, _usersHeader, context);
-  void _importUsers(BuildContext context) =>
-      _usersDatabase.import(csvUsers, _usersHeader, context);
 
 //#endregion
 
@@ -182,8 +185,7 @@ class UsersState extends State<Users> {
   @override
   Widget build(BuildContext context) {
     if (headerToFilter.isEmpty) {
-      //return Container();
-      return const CircularProgressIndicator();
+      return const Center(child: CircularProgressIndicator());
     }
     return Scaffold(
       // appBar: AppBar(
@@ -251,7 +253,7 @@ class UsersState extends State<Users> {
                 if (snapshot.hasError) {
                   return const Text('Something went wrong!');
                 }
-                return const CircularProgressIndicator();
+                return const Center(child: CircularProgressIndicator());
               },
             ),
           ),
@@ -262,9 +264,9 @@ class UsersState extends State<Users> {
               Padding(
                 padding: EdgeInsets.all(controlButtonEdgeInsets),
                 child: OutlinedButton(
-                    child: const Text('DELETE SELECTED'),
+                    child: const Text('Delete Selected'),
                     onPressed: () async {
-                      if (editedUsers.isNotEmpty) {
+                      if (editedUsers.isNotEmpty || progressImportExport > 0) {
                         return null;
                       } else {
                         for (String id in selectedUsers) {
@@ -278,9 +280,9 @@ class UsersState extends State<Users> {
               Padding(
                 padding: EdgeInsets.all(controlButtonEdgeInsets),
                 child: OutlinedButton(
-                    child: const Text('ADD USER'),
+                    child: const Text('Add User'),
                     onPressed: () async {
-                      if (editedUsers.isNotEmpty) {
+                      if (editedUsers.isNotEmpty || progressImportExport > 0) {
                         return null;
                       } else {
                         Map<String, String> map = {};
@@ -304,12 +306,19 @@ class UsersState extends State<Users> {
               Padding(
                 padding: EdgeInsets.all(controlButtonEdgeInsets),
                 child: OutlinedButton(
-                    child: const Text('EXPORT CSV'),
+                    child: progressImportExport > 0
+                        ? const Text('Cancel I/O')
+                        : const Text('Export CSV'),
                     onPressed: () async {
                       if (editedUsers.isNotEmpty) {
                         return null;
                       } else {
-                        _exportUsers(context);
+                        if (progressImportExport > 0) {
+                          abortImportExport = true;
+                        } else {
+                          download.export(Users.collectionName, _usersHeader,
+                              _usersDatabase, callbackImportExport, context);
+                        }
                         setState(() {});
                       }
                     }),
@@ -317,12 +326,19 @@ class UsersState extends State<Users> {
               Padding(
                 padding: EdgeInsets.all(controlButtonEdgeInsets),
                 child: OutlinedButton(
-                    child: const Text('IMPORT CSV'),
+                    child: progressImportExport > 0
+                        ? const Text('Cancel I/O')
+                        : const Text('Import CSV'),
                     onPressed: () async {
                       if (editedUsers.isNotEmpty) {
                         return null;
                       } else {
-                        _importUsers(context);
+                        if (progressImportExport > 0) {
+                          abortImportExport = true;
+                        } else {
+                          download.import(Users.collectionName, _usersHeader,
+                              _usersDatabase, callbackImportExport, context);
+                        }
                         setState(() {});
                       }
                     }),
@@ -341,6 +357,13 @@ class UsersState extends State<Users> {
                   }),
             ],
           ),
+          Visibility(
+              visible: progressImportExport > 0,
+              child: SizedBox(
+                  height: 5,
+                  child: LinearProgressIndicator(
+                    value: progressImportExport,
+                  ))),
         ],
       ),
     );
@@ -575,7 +598,8 @@ class UsersState extends State<Users> {
                             padding: const EdgeInsets.all(0),
                           ),
                           onPressed: () async {
-                            if (isInEdit(iUser)) return null;
+                            if (isInEdit(iUser) || progressImportExport > 0)
+                              return null;
                             if (isToEdit(iUser)) {
                               editedUsers.addAll(
                                   {getUserID(iUser): getUserMap(iUser)});
@@ -605,7 +629,8 @@ class UsersState extends State<Users> {
                             padding: const EdgeInsets.all(0),
                           ),
                           onPressed: () async {
-                            if (isInEdit(iUser)) return null;
+                            if (isInEdit(iUser) || progressImportExport > 0)
+                              return null;
                             if (isToEdit(iUser)) {
                               if (selectedUsers.contains(getUserID(iUser))) {
                                 selectedUsers.remove(getUserID(iUser));
@@ -754,6 +779,17 @@ class UsersState extends State<Users> {
         fontWeight: charWeight,
         fontSize: charWidth,
         fontFamily: charFamily);
+  }
+
+  bool callbackImportExport(double progressValue) {
+    if (abortImportExport) {
+      abortImportExport = false;
+      return false;
+    } else {
+      progressImportExport = progressValue;
+      setState(() {});
+      return true;
+    }
   }
 }
 
