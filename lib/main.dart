@@ -42,7 +42,7 @@ class HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: (currentIndex == 0)
-            ? const Text("Platzreservierung")
+            ? const Text("Reservation")
             : Text(Users.collectionName),
         actions: [IconButton(onPressed: () {}, icon: const Icon(Icons.help))],
       ),
@@ -54,7 +54,7 @@ class HomePageState extends State<HomePage> {
           currentIndex: currentIndex,
           items: const [
             BottomNavigationBarItem(
-                icon: Icon(Icons.home), label: "Reservierung"),
+                icon: Icon(Icons.home), label: "Reservation"),
             BottomNavigationBarItem(
                 icon: Icon(Icons.account_box), label: "Users"),
           ]),
